@@ -13,21 +13,31 @@ const app = express();
 const server = http.createServer(app);
 
 // Socket.IO setup
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL,
+];
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
 });
-
 // Connect to MongoDB
 connectDB();
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
