@@ -15,8 +15,9 @@ const server = http.createServer(app);
 // Socket.IO setup
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:3000',
   process.env.FRONTEND_URL,
-];
+].filter(Boolean);
 
 const io = new Server(server, {
   cors: {
@@ -32,13 +33,22 @@ connectDB();
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS not allowed'));
+    // Allow requests with no origin (mobile apps, curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    // Allow any localhost port in development
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+      return callback(null, true);
     }
+    // Allow explicitly listed origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(new Error(`CORS not allowed for origin: ${origin}`));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
